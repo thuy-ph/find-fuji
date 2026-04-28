@@ -235,13 +235,13 @@
   .guidance {
     font-size:clamp(.72rem,2.8vw,.86rem); font-weight:300;
     letter-spacing:.25em; text-transform:uppercase; color:var(--grey);
-    text-align:center; margin-top:2.5vh; min-height:1.3em; transition:color .4s;
+    text-align:center; margin-bottom:1.5vh; min-height:1.3em; transition:color .4s;
   }
   .guidance.locked { color:var(--gold); letter-spacing:.35em; }
 
   .compass-note {
     font-size:clamp(.64rem,2.2vw,.76rem); color:#4a3a28;
-    letter-spacing:.16em; text-align:center; margin-top:.7vh; min-height:1.2em;
+    letter-spacing:.16em; text-align:center; margin-bottom:.7vh; min-height:1.2em;
   }
 
   /* Status */
@@ -371,6 +371,9 @@
       </div>
     </div>
 
+    <div class="guidance" id="guidance">Sweep your phone left and right</div>
+    <div class="compass-note" id="compassNote"></div>
+
     <div class="vf-wrap" id="vfWrap">
       <div class="track" id="track">
         <canvas class="ticks" id="tickCanvas"></canvas>
@@ -402,8 +405,6 @@
       <div class="lock-glow" id="lockGlow"></div>
     </div>
 
-    <div class="guidance" id="guidance">Sweep your phone left and right</div>
-    <div class="compass-note" id="compassNote"></div>
   </div>
 
   <div class="status">
