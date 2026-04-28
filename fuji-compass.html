@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>富士山 · Find Fuji</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=Josefin+Sans:wght@100;300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0c08;
+    --red: #c0392b;
+    --cream: #f5ede0;
+    --grey: #7a6a5a;
+    --gold: #c9a84c;
+    --gold-dim: rgba(201,168,76,0.25);
+    --blue: #7eb8d4;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100%; height:100%;
+    background:var(--ink);
+    font-family:'Josefin Sans',sans-serif;
+    color:var(--cream);
+    overflow:hidden;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse at 50% 65%, rgba(126,184,212,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 20% 90%, rgba(201,168,76,0.05) 0%, transparent 50%);
+  }
+
+  /* ─── Permission screen ─── */
+  #perm-screen {
+    position:fixed; inset:0; z-index:200;
+    background:var(--ink);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:1.8rem; padding:8vw; text-align:center;
+  }
+  .perm-kanji {
+    font-family:'Shippori Mincho',serif;
+    font-size:clamp(4rem,18vw,6rem);
+    color:var(--red); line-height:1;
+    animation:breathe 3s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,100%{ text-shadow:0 0 40px rgba(192,57,43,.2); }
+    50%    { text-shadow:0 0 80px rgba(192,57,43,.5); }
+  }
+  .perm-h {
+    font-weight:100; letter-spacing:.35em;
+    font-size:clamp(.65rem,3vw,.85rem);
+    text-transform:uppercase; color:var(--cream);
+  }
+  .perm-p {
+    font-size:clamp(.75rem,3.2vw,.9rem);
+    color:var(--grey); line-height:1.9;
+    letter-spacing:.04em; max-width:26rem;
+  }
+  .btn-primary {
+    padding:.95rem 3rem;
+    border:1px solid var(--gold); background:transparent; color:var(--gold);
+    font-family:'Josefin Sans',sans-serif;
+    font-size:clamp(.6rem,2.5vw,.72rem);
+    letter-spacing:.45em; text-transform:uppercase;
+    cursor:pointer; -webkit-appearance:none; transition:all .25s;
+  }
+  .btn-primary:active { background:var(--gold); color:var(--ink); }
+  .browser-note {
+    font-size:clamp(.52rem,2vw,.62rem);
+    color:#4a3a28; letter-spacing:.14em; max-width:24rem; line-height:1.7;
+    min-height:1.4em;
+  }
+
+  /* ─── Main app ─── */
+  #app {
+    position:relative; z-index:1;
+    width:100%; height:100%;
+    display:flex; flex-direction:column; align-items:center;
+    opacity:0; transition:opacity .7s; pointer-events:none;
+  }
+  #app.on { opacity:1; pointer-events:auto; }
+
+  .hdr { text-align:center; padding:3.5vh 0 0; flex-shrink:0; }
+  .hdr-kanji {
+    font-family:'Shippori Mincho',serif;
+    font-size:clamp(1.8rem,6.5vw,2.8rem);
+    font-weight:800; letter-spacing:.15em; line-height:1;
+  }
+  .hdr-sub {
+    font-size:clamp(.52rem,2vw,.65rem); font-weight:100;
+    letter-spacing:.42em; text-transform:uppercase;
+    color:var(--grey); margin-top:.35rem;
+  }
+
+  .stage {
+    flex:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    width:100%; padding:1.5vh 0;
+  }
+
+  /* Readout */
+  .readout {
+    display:flex; gap:7vw;
+    align-items:flex-end; justify-content:center;
+    margin-bottom:3.5vh;
+  }
+  .rb { text-align:center; }
+  .rv {
+    font-family:'Shippori Mincho',serif;
+    font-size:clamp(1.8rem,7vw,2.8rem);
+    font-weight:600; line-height:1;
+    letter-spacing:-.02em; transition:color .3s;
+  }
+  .rv.gold { color:var(--gold); }
+  .rl {
+    font-size:clamp(.46rem,1.7vw,.58rem); font-weight:100;
+    letter-spacing:.4em; text-transform:uppercase;
+    color:var(--grey); margin-top:.28rem;
+  }
+  .rdiv {
+    width:1px; height:2.6rem;
+    background:linear-gradient(to bottom,transparent,#3a2f22,transparent);
+    margin-bottom:.25rem; flex-shrink:0;
+  }
+
+  /* ─── Viewfinder ─── */
+  .vf-wrap {
+    position:relative; width:100%;
+    height:clamp(130px,26vh,210px); overflow:hidden;
+  }
+  .vf-wrap::before,.vf-wrap::after {
+    content:''; position:absolute;
+    top:0; bottom:0; width:20%; z-index:3; pointer-events:none;
+  }
+  .vf-wrap::before { left:0;  background:linear-gradient(to right,var(--ink),transparent); }
+  .vf-wrap::after  { right:0; background:linear-gradient(to left, var(--ink),transparent); }
+
+  /* Track: 3600px = 360° × 10px/° */
+  .track {
+    position:absolute; top:0; bottom:0; width:3600px;
+    will-change:left;
+  }
+  .horizon {
+    position:absolute; top:50%; left:0; right:0; height:1px;
+    background:linear-gradient(to right,
+      transparent 0%,#2a2018 8%,#3a3020 50%,#2a2018 92%,transparent 100%);
+    transform:translateY(-50%);
+  }
+
+  /* Fuji peak marker */
+  .fuji-pin {
+    position:absolute; top:50%;
+    transform:translate(-50%,-50%);
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  .fuji-svg { filter:drop-shadow(0 0 10px var(--blue)); transition:filter .3s; }
+  .fuji-lbl {
+    font-family:'Shippori Mincho',serif;
+    font-size:clamp(.62rem,2.4vw,.78rem);
+    letter-spacing:.2em; color:var(--blue);
+    white-space:nowrap; transition:color .3s;
+  }
+  .fuji-pin.locked .fuji-svg {
+    filter:drop-shadow(0 0 22px var(--gold)) drop-shadow(0 0 40px rgba(201,168,76,.3));
+  }
+  .fuji-pin.locked .fuji-lbl { color:var(--gold); }
+
+  /* Fixed crosshair */
+  .xhair {
+    position:absolute; top:0; bottom:0; left:50%;
+    transform:translateX(-50%); width:2px; z-index:4; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .xhair-line {
+    width:1px; flex:1;
+    background:linear-gradient(to bottom,
+      transparent,rgba(201,168,76,.2) 30%,rgba(201,168,76,.45) 50%,
+      rgba(201,168,76,.2) 70%,transparent);
+  }
+  .xhair-dot {
+    width:7px; height:7px; border-radius:50%;
+    border:1px solid rgba(201,168,76,.7); flex-shrink:0;
+    box-shadow:0 0 8px rgba(201,168,76,.3);
+  }
+
+  canvas.ticks {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+  }
+
+  .lock-glow {
+    position:absolute; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 50%,rgba(201,168,76,.1) 0%,transparent 65%);
+    opacity:0; transition:opacity .4s;
+  }
+  .lock-glow.on { opacity:1; }
+
+  .guidance {
+    font-size:clamp(.56rem,2.2vw,.68rem); font-weight:100;
+    letter-spacing:.25em; text-transform:uppercase; color:var(--grey);
+    text-align:center; margin-top:2.5vh; min-height:1.3em; transition:color .4s;
+  }
+  .guidance.locked { color:var(--gold); letter-spacing:.35em; }
+
+  .compass-note {
+    font-size:clamp(.5rem,1.9vw,.6rem); color:#4a3a28;
+    letter-spacing:.16em; text-align:center; margin-top:.7vh; min-height:1.2em;
+  }
+
+  /* Status */
+  .status {
+    font-size:clamp(.48rem,1.9vw,.6rem); letter-spacing:.28em;
+    text-transform:uppercase; color:var(--grey);
+    display:flex; align-items:center; gap:.5rem;
+    padding-bottom:3vh; flex-shrink:0;
+  }
+  .sdot {
+    width:5px; height:5px; border-radius:50%;
+    background:var(--grey); flex-shrink:0; transition:background .5s;
+  }
+  .sdot.green { background:#4caf82; box-shadow:0 0 6px #4caf82; }
+  .sdot.red   { background:var(--red); }
+  .sdot.pulse { background:var(--gold); animation:pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.6);}
+  }
+
+  /* Mountain silhouette */
+  .mt-wrap {
+    position:fixed; bottom:0; left:0; right:0;
+    height:30vh; overflow:hidden; pointer-events:none; z-index:0;
+  }
+  .mt-wrap svg { width:100%; height:100%; }
+
+  /* ─── Manual overlay ─── */
+  #manual {
+    display:none; position:fixed; inset:0; z-index:90;
+    background:rgba(15,12,8,.97);
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:1.5rem; padding:8vw; text-align:center;
+  }
+  #manual.on { display:flex; animation:fi .4s ease both; }
+  @keyframes fi {
+    from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}
+  }
+  .m-icon { font-family:'Shippori Mincho',serif; font-size:clamp(2rem,10vw,3rem); color:var(--gold); }
+  .m-title { font-weight:100; letter-spacing:.3em; font-size:clamp(.63rem,2.7vw,.78rem); text-transform:uppercase; }
+  .m-desc  { font-size:clamp(.68rem,2.7vw,.8rem); color:var(--grey); line-height:1.85; max-width:26rem; }
+  .m-input {
+    width:100%; max-width:22rem; padding:.88rem 1.1rem;
+    background:rgba(255,255,255,.03); border:1px solid #3a2f22; border-radius:2px;
+    color:var(--cream); font-family:'Josefin Sans',sans-serif;
+    font-size:clamp(.72rem,2.8vw,.88rem); letter-spacing:.07em;
+    outline:none; -webkit-appearance:none; transition:border-color .2s;
+  }
+  .m-input:focus { border-color:var(--gold); }
+  .m-input::placeholder { color:#4a3a28; }
+  .m-err { font-size:clamp(.56rem,2.1vw,.66rem); color:var(--red); letter-spacing:.2em; min-height:1.1em; }
+  .btn-secondary {
+    padding:.82rem 2.2rem; border:1px solid var(--gold); background:transparent; color:var(--gold);
+    font-family:'Josefin Sans',sans-serif; font-size:clamp(.56rem,2.1vw,.66rem);
+    letter-spacing:.35em; text-transform:uppercase; cursor:pointer; -webkit-appearance:none; transition:all .2s;
+  }
+  .btn-secondary:active { background:var(--gold); color:var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- Permission screen -->
+<div id="perm-screen">
+  <div class="perm-kanji">富士</div>
+  <div class="perm-h">Find Fuji</div>
+  <p class="perm-p">Pan your phone left and right — Mt. Fuji slides across the viewfinder. Centre it to lock on.</p>
+  <button class="btn-primary" onclick="startApp()">Begin · 始める</button>
+  <p class="browser-note" id="browserNote"></p>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <div class="mt-wrap">
+    <svg viewBox="0 0 400 120" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#1c1408" stop-opacity=".85"/>
+          <stop offset="100%" stop-color="#0f0c08"/>
+        </linearGradient>
+        <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#f5ede0" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="#f5ede0" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M-20 120 L70 72 L130 96 L200 36 L270 96 L330 70 L420 120Z" fill="#12100a" opacity=".5"/>
+      <path d="M62 120 L200 6 L338 120Z" fill="url(#mg)"/>
+      <path d="M200 6 L176 38 L200 32 L224 38Z" fill="url(#sg)" opacity=".4"/>
+    </svg>
+  </div>
+
+  <div class="hdr">
+    <div class="hdr-kanji">富士山</div>
+    <div class="hdr-sub">Sweep to find</div>
+  </div>
+
+  <div class="stage">
+    <div class="readout">
+      <div class="rb">
+        <div class="rv" id="distVal">—</div>
+        <div class="rl">km to fuji</div>
+      </div>
+      <div class="rdiv"></div>
+      <div class="rb">
+        <div class="rv" id="bearVal">—°</div>
+        <div class="rl">bearing</div>
+      </div>
+      <div class="rdiv"></div>
+      <div class="rb">
+        <div class="rv" id="facingVal">—°</div>
+        <div class="rl">facing</div>
+      </div>
+    </div>
+
+    <div class="vf-wrap" id="vfWrap">
+      <div class="track" id="track">
+        <canvas class="ticks" id="tickCanvas"></canvas>
+        <div class="horizon"></div>
+        <div class="fuji-pin" id="fujiPin">
+          <svg class="fuji-svg" width="60" height="42" viewBox="0 0 60 42">
+            <defs>
+              <linearGradient id="fm" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#7eb8d4"/>
+                <stop offset="55%"  stop-color="#4a7a9b"/>
+                <stop offset="100%" stop-color="#2a4a6b"/>
+              </linearGradient>
+              <linearGradient id="fs" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#f5ede0" stop-opacity=".9"/>
+                <stop offset="100%" stop-color="#f5ede0" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M3 42 L30 2 L57 42Z" fill="url(#fm)"/>
+            <path d="M30 2 L22 16 L30 13 L38 16Z" fill="url(#fs)"/>
+          </svg>
+          <div class="fuji-lbl">富士山</div>
+        </div>
+      </div>
+      <div class="xhair">
+        <div class="xhair-line"></div>
+        <div class="xhair-dot"></div>
+        <div class="xhair-line"></div>
+      </div>
+      <div class="lock-glow" id="lockGlow"></div>
+    </div>
+
+    <div class="guidance" id="guidance">Sweep your phone left and right</div>
+    <div class="compass-note" id="compassNote"></div>
+  </div>
+
+  <div class="status">
+    <div class="sdot pulse" id="sdot"></div>
+    <span id="stxt">Locating…</span>
+  </div>
+</div>
+
+<!-- Manual overlay -->
+<div id="manual">
+  <div class="m-icon">場所</div>
+  <div class="m-title">Enter Your Location</div>
+  <p class="m-desc">GPS is unavailable. Enter your city or coordinates to continue.</p>
+  <input class="m-input" id="locInput" type="text"
+    placeholder="e.g. Melbourne  or  -37.8, 144.9"
+    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+  <div class="m-err" id="mErr"></div>
+  <button class="btn-secondary" onclick="resolveManual()">Set Location</button>
+</div>
+
+<script>
+/* ── Constants ────────────────────────────────────────────────────────── */
+const FUJI_LAT   = 35.3606;
+const FUJI_LON   = 138.7274;
+const PX_PER_DEG = 10;    // track is 3600px = 360° × 10px/°
+const LOCK_DEG   = 6;     // degrees of tolerance for "locked on"
+
+/* ── State ────────────────────────────────────────────────────────────── */
+let userLat      = null;
+let userLon      = null;
+let fujiBearing  = null;
+let phoneHeading = null;
+let compassSrc   = null;  // 'webkit' | 'absolute' | 'relative'
+let locked       = false;
+let rafId        = null;
+
+/* ── Browser sniff (UI hints only) ───────────────────────────────────── */
+const ua       = navigator.userAgent;
+const isIOS    = /iP(hone|ad|od)/.test(ua);
+const isFF     = /Firefox\//.test(ua);
+const isSafari = /Safari\//.test(ua) && !/Chrome\//.test(ua);
+const isDDG    = /DuckDuckGo\//.test(ua);
+
+/* ── Math ─────────────────────────────────────────────────────────────── */
+const toRad = d => d * Math.PI / 180;
+const toDeg = r => r * 180 / Math.PI;
+
+function bearingTo(la1,lo1,la2,lo2) {
+  const p1=toRad(la1),p2=toRad(la2),dl=toRad(lo2-lo1);
+  const y=Math.sin(dl)*Math.cos(p2);
+  const x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
+  return (toDeg(Math.atan2(y,x))+360)%360;
+}
+
+function distKm(la1,lo1,la2,lo2) {
+  const R=6371,dp=toRad(la2-la1),dl=toRad(lo2-lo1);
+  const a=Math.sin(dp/2)**2+Math.cos(toRad(la1))*Math.cos(toRad(la2))*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function angleDiff(a,b) { return ((a-b+540)%360)-180; }
+
+/* ── UI ───────────────────────────────────────────────────────────────── */
+function setStatus(msg,cls) {
+  document.getElementById('stxt').textContent=msg;
+  document.getElementById('sdot').className='sdot '+cls;
+}
+function showManual(msg) {
+  if (msg) document.getElementById('mErr').textContent=msg;
+  document.getElementById('manual').classList.add('on');
+  setStatus('Location needed','red');
+}
+function hideManual() {
+  document.getElementById('manual').classList.remove('on');
+  document.getElementById('mErr').textContent='';
+}
+
+/* ── Tick canvas ──────────────────────────────────────────────────────── */
+function drawTicks() {
+  const cv = document.getElementById('tickCanvas');
+  const vf = document.getElementById('vfWrap');
+  const W  = 3600, H = vf.offsetHeight || 160;
+  cv.width=W; cv.height=H;
+
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  for (let d=0;d<360;d+=5) {
+    const x=d*PX_PER_DEG;
+    const maj=d%90===0, med=d%45===0;
+    const th=maj?20:med?13:7;
+    ctx.strokeStyle=maj?'rgba(201,168,76,.55)':med?'rgba(201,168,76,.28)':'rgba(90,74,56,.4)';
+    ctx.lineWidth=maj?1.2:.8;
+    ctx.beginPath(); ctx.moveTo(x,H/2-th/2); ctx.lineTo(x,H/2+th/2); ctx.stroke();
+  }
+
+  const cards={0:'N',90:'E',180:'S',270:'W'};
+  ctx.font=`100 ${PX_PER_DEG*5.5}px 'Josefin Sans',sans-serif`;
+  ctx.fillStyle='rgba(90,74,56,.55)'; ctx.textAlign='center';
+  for (const [d,l] of Object.entries(cards)) {
+    ctx.fillText(l,parseInt(d)*PX_PER_DEG,H/2+28);
+  }
+}
+
+/* ── Render ───────────────────────────────────────────────────────────── */
+function render() {
+  if (phoneHeading===null||fujiBearing===null) return;
+
+  const vf   = document.getElementById('vfWrap');
+  const track= document.getElementById('track');
+  const pin  = document.getElementById('fujiPin');
+  const glow = document.getElementById('lockGlow');
+  const W    = vf.offsetWidth;
+
+  // Scroll track so current heading is centred
+  track.style.left = (W/2 - phoneHeading*PX_PER_DEG) + 'px';
+
+  // Place pin at Fuji's bearing, wrapping to be nearest the current view
+  let px = fujiBearing * PX_PER_DEG;
+  const centre = phoneHeading * PX_PER_DEG;
+  while (px - centre >  1800) px -= 3600;
+  while (px - centre < -1800) px += 3600;
+  pin.style.left = px + 'px';
+
+  // Lock detection
+  const diff   = Math.abs(angleDiff(fujiBearing, phoneHeading));
+  const isLock = diff <= LOCK_DEG;
+
+  if (isLock !== locked) {
+    locked = isLock;
+    pin.classList.toggle('locked', locked);
+    glow.classList.toggle('on',    locked);
+    const g=document.getElementById('guidance');
+    ['distVal','bearVal'].forEach(id=>document.getElementById(id).classList.toggle('gold',locked));
+    if (locked) { g.textContent='✦ Fuji is right there ✦'; g.classList.add('locked'); }
+    else        { g.textContent='Sweep your phone left and right'; g.classList.remove('locked'); }
+  }
+
+  document.getElementById('facingVal').textContent = Math.round(phoneHeading)+'°';
+}
+
+/* ── Geolocation ──────────────────────────────────────────────────────── */
+function startGeo() {
+  if (!navigator.geolocation) { showManual('Geolocation not supported.'); return; }
+  if (location.protocol==='file:') {
+    showManual('Chrome & Firefox block GPS for local files. Enter your location below.');
+    return;
+  }
+  navigator.geolocation.watchPosition(
+    pos => {
+      userLat=pos.coords.latitude; userLon=pos.coords.longitude;
+      applyLocation(); hideManual();
+    },
+    err => { err.code===err.PERMISSION_DENIED ? showManual('') : showManual('GPS: '+err.message); },
+    { enableHighAccuracy:true, maximumAge:4000, timeout:12000 }
+  );
+}
+
+function applyLocation() {
+  fujiBearing = bearingTo(userLat,userLon,FUJI_LAT,FUJI_LON);
+  const dist  = distKm(userLat,userLon,FUJI_LAT,FUJI_LON);
+  document.getElementById('distVal').textContent = dist>999?(dist/1000).toFixed(1)+'k':Math.round(dist);
+  document.getElementById('bearVal').textContent = Math.round(fujiBearing)+'°';
+  document.getElementById('fujiPin').style.left  = (fujiBearing*PX_PER_DEG)+'px';
+  setStatus(compassSrc?'Compass: '+compassSrc:'Waiting for compass…', compassSrc?'green':'pulse');
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(render);
+}
+
+/* ── Manual location ──────────────────────────────────────────────────── */
+async function resolveManual() {
+  const raw=document.getElementById('locInput').value.trim();
+  const err=document.getElementById('mErr');
+  err.textContent='';
+  if (!raw) { err.textContent='Please enter a city or coordinates.'; return; }
+
+  const m=raw.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+  if (m) {
+    const la=parseFloat(m[1]),lo=parseFloat(m[2]);
+    if (la>=-90&&la<=90&&lo>=-180&&lo<=180) { applyManual(la,lo,raw); return; }
+    err.textContent='Coordinates out of range.'; return;
+  }
+
+  err.textContent='Searching…';
+  try {
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(raw)}&format=json&limit=1`,
+      {headers:{'Accept-Language':'en'}});
+    const d=await r.json();
+    if (!d.length) { err.textContent='Place not found. Try coordinates.'; return; }
+    applyManual(parseFloat(d[0].lat),parseFloat(d[0].lon),d[0].display_name);
+  } catch { err.textContent='Search failed. Check connection or enter coordinates.'; }
+}
+
+function applyManual(la,lo,label) {
+  userLat=la; userLon=lo; applyLocation(); hideManual();
+  const s=label.length>36?label.slice(0,34)+'…':label;
+  setStatus('📍 '+s,'green');
+}
+
+/* ── Device Orientation — cross-browser ───────────────────────────────── */
+/*
+  Priority (highest to lowest):
+  1. webkitCompassHeading  — iOS Safari / iOS Chrome / iOS DDG (true north, hardware-compensated)
+  2. deviceorientationabsolute alpha — Android Chrome/Edge (true north via magnetometer)
+  3. deviceorientation alpha (absolute=true) — some Android browsers
+  4. deviceorientation alpha (relative) — Firefox fallback, warns user
+*/
+
+const srcPriority = { webkit:3, absolute:2, relative:1 };
+
+function getScreenOffset() {
+  // Android needs manual screen-rotation correction; iOS corrects automatically
+  if (isIOS) return 0;
+  if (screen.orientation&&screen.orientation.angle!==undefined) return screen.orientation.angle;
+  if (typeof window.orientation!=='undefined') return window.orientation<0?window.orientation+360:window.orientation;
+  return 0;
+}
+
+function applyHeading(heading, src) {
+  if (heading===null||isNaN(heading)) return;
+  // Never downgrade to a worse source mid-session
+  if (compassSrc && (srcPriority[src]||0) < (srcPriority[compassSrc]||0)) return;
+  compassSrc   = src;
+  phoneHeading = (heading+360)%360;
+  if (userLat!==null) setStatus('Compass: '+src,'green');
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(render);
+}
+
+function onAbsolute(e) {
+  // deviceorientationabsolute — Android Chrome/Edge
+  if (e.alpha===null) return;
+  const h=(360-e.alpha+getScreenOffset())%360;
+  applyHeading(h,'absolute');
+}
+
+function onOrientation(e) {
+  // 1. iOS webkit (best on iPhone/iPad)
+  if (typeof e.webkitCompassHeading==='number'&&e.webkitCompassHeading>=0) {
+    applyHeading(e.webkitCompassHeading,'webkit'); return;
+  }
+  // 2. Some Android browsers mark regular event as absolute
+  if (e.absolute&&e.alpha!==null) {
+    applyHeading((360-e.alpha+getScreenOffset())%360,'absolute'); return;
+  }
+  // 3. Relative alpha — Firefox etc.
+  if ((compassSrc===null||compassSrc==='relative')&&e.alpha!==null) {
+    applyHeading((360-e.alpha)%360,'relative');
+    const n=document.getElementById('compassNote');
+    if (!n.textContent) n.textContent='Compass accuracy limited — bearing from North shown';
+  }
+}
+
+function startCompass() {
+  // iOS 13+ requires explicit permission triggered by user gesture
+  if (typeof DeviceOrientationEvent!=='undefined'&&
+      typeof DeviceOrientationEvent.requestPermission==='function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(res=>{
+        if (res==='granted') {
+          window.addEventListener('deviceorientationabsolute',onAbsolute,true);
+          window.addEventListener('deviceorientation',onOrientation,true);
+        } else {
+          document.getElementById('compassNote').textContent=
+            'Compass permission denied — point toward bearing shown above';
+        }
+      })
+      .catch(()=>window.addEventListener('deviceorientation',onOrientation,true));
+  } else {
+    // Android, Firefox, Desktop
+    window.addEventListener('deviceorientationabsolute',onAbsolute,true);
+    window.addEventListener('deviceorientation',onOrientation,true);
+  }
+}
+
+/* ── Entry point ──────────────────────────────────────────────────────── */
+function startApp() {
+  document.getElementById('perm-screen').style.display='none';
+  document.getElementById('app').classList.add('on');
+  drawTicks();
+  if (isFF) document.getElementById('compassNote').textContent=
+    'Firefox compass may drift — Chrome or Safari gives better accuracy';
+  startCompass();
+  startGeo();
+}
+
+// Enter key submits manual input
+document.getElementById('locInput')
+  .addEventListener('keydown',e=>{ if(e.key==='Enter') resolveManual(); });
+
+// Redraw ticks on resize
+window.addEventListener('resize',drawTicks);
+
+// Browser hint on start screen
+(function(){
+  const n=document.getElementById('browserNote');
+  if (isFF)            n.textContent='Firefox: compass heading may be approximate';
+  else if (isDDG)      n.textContent='DuckDuckGo: works best when served over HTTPS';
+  else if (isIOS&&!isSafari) n.textContent='Tip: Safari gives the most accurate compass on iPhone/iPad';
+})();
+</script>
+</body>
+</html>
