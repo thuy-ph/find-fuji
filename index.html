@@ -272,6 +272,22 @@
     letter-spacing:.35em; text-transform:uppercase; cursor:pointer; -webkit-appearance:none; transition:all .2s;
   }
   .btn-secondary:active { background:var(--gold); color:var(--ink); }
+
+  /* ─── Buy Me a Coffee ─── */
+  #bmc-btn {
+    position:fixed; bottom:1.4rem; right:1.4rem; z-index:100;
+    display:flex; align-items:center; gap:.45rem;
+    padding:.5rem .95rem;
+    border:1px solid var(--gold-dim); background:rgba(15,12,8,.7);
+    color:var(--grey); text-decoration:none;
+    font-family:'Josefin Sans',sans-serif;
+    font-size:clamp(.44rem,1.7vw,.56rem);
+    letter-spacing:.2em; text-transform:uppercase;
+    transition:border-color .25s,color .25s;
+    backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+    user-select:none; -webkit-user-select:none;
+  }
+  #bmc-btn:hover { border-color:var(--gold); color:var(--gold); }
 </style>
 </head>
 <body>
@@ -380,6 +396,8 @@
   <div class="m-err" id="mErr"></div>
   <button class="btn-secondary" onclick="resolveManual()">Set Location</button>
 </div>
+
+<a id="bmc-btn" href="https://buymeacoffee.com/thuypham" target="_blank" rel="noopener">☕ Buy me a coffee</a>
 
 <script>
 /* ── Constants ────────────────────────────────────────────────────────── */
