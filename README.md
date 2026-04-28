@@ -4,7 +4,7 @@ A mobile web app that uses your phone's compass and GPS to tell you exactly whic
 
 Pan your phone left and right until the Fuji marker locks onto the crosshair.
 
-**[Try it →](https://thuy-ph.github.io/find-fuji/)**
+**[Try it →](https://fuji-compass.com)**
 
 ---
 
